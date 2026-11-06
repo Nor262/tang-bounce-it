@@ -1,0 +1,37 @@
+# Unity
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+.consulo/
+.vs/
+.idea/
+
+# Android build intermediates (keep final APK)
+android_project/bin/
+android_project/gen/
+android_project/classes.txt
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+*~

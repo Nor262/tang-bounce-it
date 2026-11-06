@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Tâng! (Bounce It!) - KGW 2026</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  body {
+    background: #1a1a24;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden;
+    color: #fff;
+  }
+  #game-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    height: 100vh;
+    max-height: 820px;
+    background: #000;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+    overflow: hidden;
+    border-radius: 12px;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  #ui-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .hud-top {
+    position: absolute;
+    top: 16px;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 20px;
+    font-weight: bold;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+  }
+  .score-badge {
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 8px 18px;
+    border-radius: 30px;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .score-badge span {
+    font-size: 26px;
+    color: #ffd152;
+    font-family: monospace;
+  }
+  .char-switch {
+    pointer-events: auto;
+    position: absolute;
+    top: 75px;
+    left: 20px;
+    display: flex;
+    gap: 8px;
+  }
+  .btn-chip {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: #fff;
+    padding: 5px 12px;
+    border-radius: 16px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+  .btn-chip.active {
+    background: #e63946;
+    border-color: #ffb703;
+    font-weight: bold;
+  }
+  #start-screen, #game-over-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 15, 26, 0.85);
+    backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 30px;
+    pointer-events: auto;
+  }
+  h1 {
+    font-size: 28px;
+    margin-bottom: 6px;
+    color: #ffd166;
+    text-shadow: 0 2px 10px rgba(255, 209, 102, 0.4);
+  }
+  .subtitle {
+    font-size: 14px;
+    color: #a8dadc;
+    margin-bottom: 24px;
+  }
+  .btn-play {
+    background: linear-gradient(135deg, #e63946, #d62828);
+    border: 2px solid #ffd166;
+    color: #fff;
+    padding: 14px 40px;
+    border-radius: 50px;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(230, 57, 70, 0.5);
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .btn-play:active {
+    transform: scale(0.95);
+    box-shadow: 0 4px 12px rgba(230, 57, 70, 0.5);
+  }
+  .tips {
+    margin-top: 25px;
+    font-size: 13px;
+    color: #cbd5e1;
+    line-height: 1.6;
+    background: rgba(255,255,255,0.08);
+    padding: 12px 18px;
+    border-radius: 12px;
+  }
+  .gameover-score {
+    font-size: 54px;
+    font-family: monospace;
+    color: #ffd166;
+    margin: 15px 0 5px 0;
+  }
+  .gameover-label {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #94a3b8;
+  }
+  .badge-record {
+    background: #06d6a0;
+    color: #032b21;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 4px 12px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    display: inline-block;
+  }
+  #combo-tag {
+    position: absolute;
+    top: 130px;
+    left: 50%;
+    transform: translateX(-50%) scale(0);
+    background: linear-gradient(135deg, #ffd166, #f77f00);
+    color: #111;
+    font-weight: 900;
+    padding: 4px 16px;
+    border-radius: 20px;
+    font-size: 18px;
+    box-shadow: 0 4px 15px rgba(247, 127, 0, 0.6);
+    transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="game-wrapper">
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="ui-overlay">
+    <div class="hud-top">
+      <div class="score-badge">🏆 <span id="current-score">0</span></div>
+      <div class="score-badge">⭐ <span id="best-score">0</span></div>
+    </div>
+
+    <div class="char-switch">
+      <button class="btn-chip active" id="btn-vn">🇻🇳 Bé An (Đá Cầu)</button>
+      <button class="btn-chip" id="btn-kr">🇰🇷 Min-jun (Jegi)</button>
+    </div>
+
+    <div id="combo-tag">3x PERFECT!</div>
+  </div>
+
+  <!-- Start Screen -->
+  <div id="start-screen">
+    <h1>TÂNG! (BOUNCE IT!)</h1>
+    <div class="subtitle">ĐÁ CẦU & JEGICHAGI • KOREA GAME WEEK 2026</div>
+    <button class="btn-play" id="btn-start">CHƠI NGAY</button>
+    <div class="tips">
+      <strong>🎯 Luật chơi 1 chạm (One-tap):</strong><br>
+      • Chạm màn hình (hoặc bấm <b>Phím Cách / Space</b>) khi quả cầu rơi ngang tầm chân.<br>
+      • Đá sớm: <i>Hụt chân té ngửa</i>.<br>
+      • Đá trễ: <i>Cầu chạm đất là THUA</i>.<br>
+      • Tâng đúng thời điểm: Kích hoạt <b>Perfect Combo</b>!
+    </div>
+  </div>
+
+  <!-- Game Over Screen -->
+  <div id="game-over-screen" style="display: none;">
+    <div class="gameover-label">KẾT QUẢ VÁN ĐẤU</div>
+    <div class="gameover-score" id="final-score">0</div>
+    <div id="new-record-badge" class="badge-record" style="display:none;">🎉 KỶ LỤC MỚI!</div>
+    <div class="subtitle" id="fail-quip">"Sẩy chân một li, đi tong quả cầu!"</div>
+    <button class="btn-play" id="btn-restart">TÂNG LẠI (SPACE)</button>
+  </div>
+</div>
+
+<script>
+// --- AUDIO SYNTHESIZER (Web Audio API - No external files required) ---
+const AudioEngine = {
+  ctx: null,
+  init() {
+    if (!this.ctx) {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+  },
+  playKick(type = 'normal') {
+    if (!this.ctx) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const now = this.ctx.currentTime;
+
+    if (type === 'perfect') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.exponentialRampToValueAtTime(700, now + 0.12);
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+    } else {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(180, now);
+      osc.frequency.exponentialRampToValueAtTime(420, now + 0.08);
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+    }
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.22);
+  },
+  playWhiff() {
+    if (!this.ctx) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const now = this.ctx.currentTime;
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(300, now);
+    osc.frequency.linearRampToValueAtTime(80, now + 0.15);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.linearRampToValueAtTime(0.01, now + 0.18);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.2);
+  },
+  playFail() {
+    if (!this.ctx) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const now = this.ctx.currentTime;
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.linearRampToValueAtTime(40, now + 0.4);
+    gain.gain.setValueAtTime(0.4, now);
+    gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.45);
+  }
+};
+
+// --- GAME LOGIC & ENGINE ---
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let W = 400;
+let H = 700;
+
+function resize() {
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * window.devicePixelRatio;
+  canvas.height = rect.height * window.devicePixelRatio;
+  W = canvas.width;
+  H = canvas.height;
+}
+window.addEventListener('resize', resize);
+
+// State variables
+let gameState = 'START'; // 'START', 'PLAYING', 'GAMEOVER'
+let currentTheme = 'VN'; // 'VN' (Bé An) or 'KR' (Min-jun)
+let score = 0;
+let bestScore = parseInt(localStorage.getItem('kgw_jegi_best') || '0', 10);
+document.getElementById('best-score').innerText = bestScore;
+let combo = 0;
+let screenShake = 0;
+
+// Shuttlecock (Quả cầu)
+const shuttle = {
+  x: 0,
+  y: 0,
+  vx: 0,
+  vy: 0,
+  radius: 14,
+  angle: 0,
+  vRot: 0,
+  tails: [],
+  reset() {
+    this.x = W * 0.5;
+    this.y = H * 0.22;
+    this.vx = 0;
+    this.vy = 1;
+    this.angle = 0;
+    this.vRot = 0;
+    this.tails = [];
+  }
+};
+
+// Character animation state
+const player = {
+  kickAnim: 0, // 0 = idle, >0 is kicking
+  isWhiffing: false,
+  x: 0,
+  y: 0
+};
+
+// Particle System
+const particles = [];
+function addParticles(x, y, color, count = 12) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 2 + Math.random() * 6;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 2,
+      color,
+      size: 3 + Math.random() * 4,
+      life: 1.0,
+      decay: 0.02 + Math.random() * 0.03
+    });
+  }
+}
+
+// Background environment drawing
+function drawBackground() {
+  // Sky Gradient: Sunset transition between Hoi An & Bukchon
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+  if (currentTheme === 'VN') {
+    skyGrad.addColorStop(0, '#1c1938');
+    skyGrad.addColorStop(0.55, '#6a2c70');
+    skyGrad.addColorStop(0.85, '#e84545');
+    skyGrad.addColorStop(1, '#ffb037');
+  } else {
+    skyGrad.addColorStop(0, '#0d1b2a');
+    skyGrad.addColorStop(0.5, '#1b4965');
+    skyGrad.addColorStop(0.85, '#62b6cb');
+    skyGrad.addColorStop(1, '#bee9e8');
+  }
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Big Moon / Sun
+  ctx.save();
+  ctx.fillStyle = currentTheme === 'VN' ? 'rgba(255, 225, 168, 0.85)' : 'rgba(255, 245, 230, 0.9)';
+  ctx.shadowColor = '#ffd166';
+  ctx.shadowBlur = 30;
+  ctx.beginPath();
+  ctx.arc(W * 0.8, H * 0.2, W * 0.12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Mountain Silhouette / Heritage Skyline
+  ctx.fillStyle = 'rgba(10, 10, 20, 0.5)';
+  ctx.beginPath();
+  ctx.moveTo(0, H * 0.72);
+  ctx.lineTo(W * 0.25, H * 0.65);
+  ctx.lineTo(W * 0.5, H * 0.70);
+  ctx.lineTo(W * 0.8, H * 0.62);
+  ctx.lineTo(W, H * 0.73);
+  ctx.lineTo(W, H);
+  ctx.lineTo(0, H);
+  ctx.fill();
+
+  // Ground (Cobblestone / Sandy courtyard)
+  const groundY = H * 0.82;
+  const groundGrad = ctx.createLinearGradient(0, groundY, 0, H);
+  groundGrad.addColorStop(0, currentTheme === 'VN' ? '#9c6644' : '#6c757d');
+  groundGrad.addColorStop(1, '#2b1e16');
+  ctx.fillStyle = groundGrad;
+  ctx.fillRect(0, groundY, W, H - groundY);
+
+  // Floor line / Pattern
+  ctx.strokeStyle = currentTheme === 'VN' ? 'rgba(255, 200, 100, 0.3)' : 'rgba(200, 230, 255, 0.3)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(0, groundY);
+  ctx.lineTo(W, groundY);
+  ctx.stroke();
+
+  // Sweet spot indicator (Vùng tâng cầu chuẩn)
+  const kickZoneY = H * 0.74;
+  ctx.fillStyle = 'rgba(255, 209, 102, 0.08)';
+  ctx.fillRect(W * 0.2, kickZoneY - 40, W * 0.6, 60);
+  ctx.strokeStyle = 'rgba(255, 209, 102, 0.25)';
+  ctx.setLineDash([6, 6]);
+  ctx.strokeRect(W * 0.2, kickZoneY - 40, W * 0.6, 60);
+  ctx.setLineDash([]);
+}
+
+// Draw the Player Character (Chibi standing on one leg)
+function drawPlayer() {
+  const pX = W * 0.45;
+  const pY = H * 0.78;
+  player.x = pX;
+  player.y = pY;
+
+  ctx.save();
+  ctx.translate(pX, pY);
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(0, 15, 30, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Standing Leg
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 7;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-6, -10);
+  ctx.lineTo(-8, 12);
+  ctx.stroke();
+
+  // Kicking Leg (Animates on tap)
+  const kickAngle = player.kickAnim > 0 ? (player.kickAnim * Math.PI * 0.45) : 0;
+  ctx.save();
+  ctx.translate(8, -10);
+  ctx.rotate(-kickAngle);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(12, 10);
+  ctx.lineTo(player.kickAnim > 0 ? 25 : 18, player.kickAnim > 0 ? -4 : 14);
+  ctx.stroke();
+  ctx.restore();
+
+  // Body / Clothes
+  ctx.fillStyle = currentTheme === 'VN' ? '#d90429' : '#0077b6';
+  ctx.beginPath();
+  ctx.roundRect(-16, -42, 32, 36, [10, 10, 4, 4]);
+  ctx.fill();
+
+  // Belt / Scarf
+  ctx.fillStyle = currentTheme === 'VN' ? '#ffd166' : '#ffffff';
+  ctx.fillRect(-16, -20, 32, 6);
+
+  // Head
+  ctx.fillStyle = '#ffdfba';
+  ctx.beginPath();
+  ctx.arc(0, -56, 16, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Face Expression (Eyes)
+  ctx.fillStyle = '#222';
+  if (gameState === 'GAMEOVER') {
+    // X_X eyes
+    ctx.font = '12px sans-serif';
+    ctx.fillText('x', -8, -52);
+    ctx.fillText('x', 2, -52);
+  } else if (player.kickAnim > 0) {
+    // Happy squint eyes
+    ctx.beginPath();
+    ctx.arc(-5, -55, 3, 0, Math.PI);
+    ctx.arc(5, -55, 3, 0, Math.PI);
+    ctx.stroke();
+  } else {
+    // Normal focused eyes
+    ctx.beginPath();
+    ctx.arc(-5, -55, 2.5, 0, Math.PI * 2);
+    ctx.arc(5, -55, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Hat
+  if (currentTheme === 'VN') {
+    // Nón Lá (Conical Palm Hat)
+    ctx.fillStyle = '#fefae0';
+    ctx.strokeStyle = '#dda15e';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -84);
+    ctx.lineTo(-24, -66);
+    ctx.lineTo(24, -66);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    // Gat (Mũ quý tộc đen Hàn Quốc)
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-22, -68, 44, 4); // Vành mũ
+    ctx.fillRect(-10, -84, 20, 16); // Thân mũ trụ
+  }
+
+  ctx.restore();
+}
+
+// Draw Shuttlecock (Quả cầu lá chuối hoặc cầu Jegi ngũ sắc)
+function drawShuttlecock() {
+  ctx.save();
+  ctx.translate(shuttle.x, shuttle.y);
+  ctx.rotate(shuttle.angle);
+
+  // Tail ribbons / Feathers
+  const tailColors = currentTheme === 'VN' 
+    ? ['#06d6a0', '#ffd166', '#ef476f', '#118ab2'] 
+    : ['#e63946', '#f1faee', '#a8dadc', '#457b9d', '#ffd166'];
+
+  for (let i = -2; i <= 2; i++) {
+    ctx.strokeStyle = tailColors[(i + 2) % tailColors.length];
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.moveTo(i * 3, -4);
+    // Curl tails backward relative to velocity
+    const curveX = i * 6 - shuttle.vx * 3;
+    const curveY = -28 - Math.abs(shuttle.vy) * 2;
+    ctx.quadraticCurveTo(i * 2, -15, curveX, curveY);
+    ctx.stroke();
+  }
+
+  // Base Disk (Đồng tiền xu bọc vải / cao su)
+  ctx.fillStyle = currentTheme === 'VN' ? '#d90429' : '#ffb703';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 11, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Metal coin highlight
+  ctx.fillStyle = '#ffd166';
+  ctx.beginPath();
+  ctx.arc(0, 0, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// Execute Kick (Thực hiện cú tâng cầu)
+function tryKick() {
+  AudioEngine.init();
+
+  if (gameState !== 'PLAYING') return;
+
+  player.kickAnim = 1.0; // Trigger kick animation
+
+  const groundY = H * 0.82;
+  const kickZoneY = H * 0.74;
+  const distY = Math.abs(shuttle.y - kickZoneY);
+  const distX = Math.abs(shuttle.x - player.x);
+
+  // Check if shuttlecock is in the sweet spot zone
+  if (distY < 55 && distX < 90 && shuttle.vy > 0) {
+    // SUCCESSFUL KICK!
+    const isPerfect = distY < 20;
+
+    if (isPerfect) {
+      combo++;
+      score += 2;
+      AudioEngine.playKick('perfect');
+      addParticles(shuttle.x, shuttle.y, '#ffd166', 18);
+      showComboBadge(combo + 'x THẦN SẦU! (+2)');
+      screenShake = 6;
+    } else {
+      combo = 0;
+      score += 1;
+      AudioEngine.playKick('normal');
+      addParticles(shuttle.x, shuttle.y, '#ffffff', 8);
+    }
+
+    document.getElementById('current-score').innerText = score;
+
+    // Physics upward bounce with slight dynamic curve
+    shuttle.vy = -(12.5 + Math.min(score * 0.15, 5));
+    shuttle.vx = (Math.random() - 0.5) * 4.5;
+    shuttle.vRot = (Math.random() - 0.5) * 0.4;
+
+  } else {
+    // WHISTLE/WHIFF - Kicked too early into empty air!
+    AudioEngine.playWhiff();
+    player.isWhiffing = true;
+  }
+}
+
+// Show Combo Toast
+function showComboBadge(text) {
+  const badge = document.getElementById('combo-tag');
+  badge.innerText = text;
+  badge.style.transform = 'translateX(-50%) scale(1.15)';
+  setTimeout(() => {
+    badge.style.transform = 'translateX(-50%) scale(0)';
+  }, 700);
+}
+
+// Game Over handler
+function triggerGameOver(reason) {
+  gameState = 'GAMEOVER';
+  AudioEngine.playFail();
+  screenShake = 12;
+
+  if (score > bestScore) {
+    bestScore = score;
+    localStorage.setItem('kgw_jegi_best', bestScore);
+    document.getElementById('best-score').innerText = bestScore;
+    document.getElementById('new-record-badge').style.display = 'inline-block';
+  } else {
+    document.getElementById('new-record-badge').style.display = 'none';
+  }
+
+  document.getElementById('final-score').innerText = score;
+  const quips = [
+    "Sẩy chân một li, quả cầu chạm đất!",
+    "Chân nhanh hơn não rồi, thử lại xem!",
+    "Quả cầu rơi nhanh như tuyết đầu mùa!",
+    "Đá trượt tí xíu nữa là được kỷ lục mới rồi!"
+  ];
+  document.getElementById('fail-quip').innerText = quips[Math.floor(Math.random() * quips.length)];
+  document.getElementById('game-over-screen').style.display = 'flex';
+}
+
+// Main Game Loop
+let lastTime = performance.now();
+
+function gameLoop(time) {
+  const dt = Math.min((time - lastTime) / 1000, 0.05);
+  lastTime = time;
+
+  // Screen shake decay
+  let shakeX = 0;
+  let shakeY = 0;
+  if (screenShake > 0) {
+    shakeX = (Math.random() - 0.5) * screenShake;
+    shakeY = (Math.random() - 0.5) * screenShake;
+    screenShake *= 0.85;
+    if (screenShake < 0.5) screenShake = 0;
+  }
+
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
+
+  // Clear & Draw Scene
+  drawBackground();
+
+  // Update & Draw Player
+  if (player.kickAnim > 0) {
+    player.kickAnim -= dt * 4.5;
+    if (player.kickAnim < 0) player.kickAnim = 0;
+  }
+  drawPlayer();
+
+  // Shuttle physics
+  if (gameState === 'PLAYING') {
+    // Gravity + Air Drag
+    shuttle.vy += 22 * dt;
+    shuttle.vx *= 0.985;
+    shuttle.x += shuttle.vx;
+    shuttle.y += shuttle.vy;
+    shuttle.angle += shuttle.vRot;
+
+    // Wall bounce
+    if (shuttle.x < shuttle.radius + 10) {
+      shuttle.x = shuttle.radius + 10;
+      shuttle.vx *= -0.7;
+    } else if (shuttle.x > W - shuttle.radius - 10) {
+      shuttle.x = W - shuttle.radius - 10;
+      shuttle.vx *= -0.7;
+    }
+
+    // Ground check (Touch floor = LOSE)
+    const groundY = H * 0.82;
+    if (shuttle.y >= groundY - 6) {
+      shuttle.y = groundY - 6;
+      addParticles(shuttle.x, shuttle.y, '#9c6644', 14);
+      triggerGameOver('GROUND');
+    }
+  }
+
+  drawShuttlecock();
+
+  // Update Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= p.decay;
+    if (p.life <= 0) {
+      particles.splice(i, 1);
+    } else {
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.life;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+    }
+  }
+
+  ctx.restore();
+
+  requestAnimationFrame(gameLoop);
+}
+
+// User Input Listeners
+function onUserInput(e) {
+  if (e) e.preventDefault();
+  if (gameState === 'PLAYING') {
+    tryKick();
+  } else if (gameState === 'GAMEOVER') {
+    startGame();
+  }
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' || e.code === 'ArrowUp') {
+    onUserInput(e);
+  }
+});
+
+canvas.addEventListener('pointerdown', onUserInput);
+
+function startGame() {
+  AudioEngine.init();
+  score = 0;
+  combo = 0;
+  document.getElementById('current-score').innerText = '0';
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('game-over-screen').style.display = 'none';
+  shuttle.reset();
+  gameState = 'PLAYING';
+}
+
+document.getElementById('btn-start').addEventListener('click', startGame);
+document.getElementById('btn-restart').addEventListener('click', startGame);
+
+// Theme Switchers
+document.getElementById('btn-vn').addEventListener('click', () => {
+  currentTheme = 'VN';
+  document.getElementById('btn-vn').classList.add('active');
+  document.getElementById('btn-kr').classList.remove('active');
+});
+
+document.getElementById('btn-kr').addEventListener('click', () => {
+  currentTheme = 'KR';
+  document.getElementById('btn-kr').classList.add('active');
+  document.getElementById('btn-vn').classList.remove('active');
+});
+
+// Initialization
+resize();
+requestAnimationFrame(gameLoop);
+</script>
+
+</body>
+</html>
