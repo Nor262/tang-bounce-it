@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 2
+  tags:
+  - Ground
+  - Shuttlecock
+  - Player
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  - 
+  - Water
+  - UI
+  SortingLayers:
+  - name: Default
+    uniqueID: 0
+    locked: 0
+  - name: Background
+    uniqueID: 100
+    locked: 0
+  - name: Characters
+    uniqueID: 200
+    locked: 0
+  - name: Foreground
+    uniqueID: 300
+    locked: 0
+  - name: UI
+    uniqueID: 400
+    locked: 0
